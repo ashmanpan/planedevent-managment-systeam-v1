@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - PEMS</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/pages/dashboard.html" class="logo">PEMS</a>
+            <nav>
+                <a href="/pages/dashboard.html" class="active">Dashboard</a>
+                <a href="/pages/event-create.html">New Event</a>
+                <a href="/pages/approvals.html">Approvals</a>
+            </nav>
+            <div class="user-menu"></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Dashboard</h1>
+            <a href="/pages/event-create.html" class="btn btn-primary">+ New Event</a>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="stats-grid" id="stats-container">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">-</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-pending">-</div>
+                <div class="stat-label">Pending Approval</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-progress">-</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-completed">-</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Recent Events</h2>
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select id="filter-status" class="filter-control" onchange="applyFilters()">
+                        <option value="">All</option>
+                        <option value="draft">Draft</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="approved_l1">Approved L1</option>
+                        <option value="approved_l2">Approved L2</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="reverted">Reverted</option>
+                        <option value="postponed">Postponed</option>
+                        <option value="deferred">Deferred</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">From Date</label>
+                    <input type="date" id="filter-start-date" class="filter-control" onchange="applyFilters()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">To Date</label>
+                    <input type="date" id="filter-end-date" class="filter-control" onchange="applyFilters()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Device</label>
+                    <input type="text" id="filter-device" class="filter-control" placeholder="Search by device..." oninput="debounce(applyFilters, 500)()">
+                </div>
+                <div class="filter-group" style="align-self: flex-end;">
+                    <button class="btn btn-outline btn-sm" onclick="clearFilters()">Clear</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Devices</th>
+                            <th>Created By</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="events-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="pagination" class="pagination"></div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/events.js"></script>
+    <script>
+        async function loadStats() {
+            try {
+                // Get all events to calculate stats
+                const allEvents = await api.getEvents({ limit: 1000 });
+                const events = allEvents.items;
+
+                document.getElementById('stat-total').textContent = events.length;
+                document.getElementById('stat-pending').textContent = events.filter(e =>
+                    ['submitted', 'approved_l1'].includes(e.status)).length;
+                document.getElementById('stat-progress').textContent = events.filter(e =>
+                    e.status === 'in_progress').length;
+                document.getElementById('stat-completed').textContent = events.filter(e =>
+                    e.status === 'completed').length;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            loadStats();
+        });
+    </script>
+</body>
+</html>

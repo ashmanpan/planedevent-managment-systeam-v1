@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: pems-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-pems_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pems_password}
+      POSTGRES_DB: ${DB_NAME:-pems_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pems_user} -d ${DB_NAME:-pems_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pems-backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-pems_user}:${DB_PASSWORD:-pems_password}@db:5432/${DB_NAME:-pems_db}
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production}
+      EXTERNAL_DEVICE_API_URL: ${EXTERNAL_DEVICE_API_URL:-}
+      EXTERNAL_DEVICE_API_KEY: ${EXTERNAL_DEVICE_API_KEY:-}
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pems-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads_data:

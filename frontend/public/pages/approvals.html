@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approvals - PEMS</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/pages/dashboard.html" class="logo">PEMS</a>
+            <nav>
+                <a href="/pages/dashboard.html">Dashboard</a>
+                <a href="/pages/event-create.html">New Event</a>
+                <a href="/pages/approvals.html" class="active">Approvals</a>
+            </nav>
+            <div class="user-menu"></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Pending Approvals</h1>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="card">
+            <div id="approvals-container">
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        async function loadApprovals() {
+            const container = document.getElementById('approvals-container');
+
+            try {
+                const approvals = await api.getPendingApprovals();
+
+                if (approvals.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No Pending Approvals</h3>
+                            <p>There are no events waiting for your approval.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Scheduled Date</th>
+                                    <th>Approval Level</th>
+                                    <th>Created By</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${approvals.map(approval => `
+                                    <tr>
+                                        <td>
+                                            <a href="/pages/event-detail.html?id=${approval.event_id}">
+                                                <strong>${escapeHtml(approval.event_title)}</strong>
+                                            </a>
+                                        </td>
+                                        <td>${approval.event_scheduled_date}</td>
+                                        <td><span class="badge badge-${approval.approval_level === 1 ? 'submitted' : 'approved_l1'}">Level ${approval.approval_level}</span></td>
+                                        <td>${escapeHtml(approval.creator_name)}</td>
+                                        <td>${formatDateTime(approval.created_at)}</td>
+                                        <td class="actions">
+                                            <button class="btn btn-success btn-sm" onclick="approveEvent('${approval.event_id}')">Approve</button>
+                                            <button class="btn btn-danger btn-sm" onclick="rejectEvent('${approval.event_id}')">Reject</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function approveEvent(eventId) {
+            const comments = prompt('Enter approval comments (optional):');
+            if (comments === null) return;
+
+            try {
+                await api.approveEvent(eventId, comments);
+                showAlert('Event approved');
+                loadApprovals();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        async function rejectEvent(eventId) {
+            const comments = prompt('Enter rejection reason:');
+            if (comments === null) return;
+
+            try {
+                await api.rejectEvent(eventId, comments);
+                showAlert('Event rejected');
+                loadApprovals();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+
+            const user = getCurrentUser();
+            if (!user || !['approver_l1', 'approver_l2', 'admin'].includes(user.role)) {
+                window.location.href = '/pages/dashboard.html';
+                return;
+            }
+
+            loadApprovals();
+        });
+    </script>
+</body>
+</html>
