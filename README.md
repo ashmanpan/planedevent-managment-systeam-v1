@@ -102,6 +102,103 @@ The API documentation is auto-generated and available at:
 - `POST /api/v1/approvals/{event_id}/approve` - Approve event
 - `POST /api/v1/approvals/{event_id}/reject` - Reject event
 
+### Search & Query API (for External Systems)
+
+These endpoints return **full event details with MOP content**, devices, approvals, and history.
+
+#### Search by Time Window
+```
+GET /api/v1/search/by-time-window?start_date=2024-01-01&end_date=2024-01-31
+GET /api/v1/search/by-time-window?start_date=2024-01-15&end_date=2024-01-15&start_time=00:00&end_time=06:00
+```
+
+#### Search by Device
+```
+GET /api/v1/search/by-device?device_id=router-001
+GET /api/v1/search/by-device?device_name=core-router
+GET /api/v1/search/by-device?device_type=router&device_ip=10.0.0
+```
+
+#### Search by Creator/User
+```
+GET /api/v1/search/by-creator?creator_username=john
+GET /api/v1/search/by-creator?creator_id=uuid-here
+```
+
+#### Search by Status
+```
+GET /api/v1/search/by-status?status=approved_l2
+GET /api/v1/search/by-status?status=in_progress&start_date=2024-01-01
+```
+
+#### Convenience Endpoints
+```
+GET /api/v1/search/today                    # Events scheduled for today
+GET /api/v1/search/upcoming?days=7          # Events in next 7 days
+GET /api/v1/search/upcoming?days=30&status=approved_l2
+```
+
+#### Advanced Search (combine multiple filters)
+```
+GET /api/v1/search/advanced?device_name=router&status=approved_l2&start_date=2024-01-01
+GET /api/v1/search/advanced?statuses=in_progress,approved_l2&creator_username=admin
+GET /api/v1/search/advanced?mop_contains=backup&device_type=router
+GET /api/v1/search/advanced?title_contains=upgrade&device_ip=10.0.0
+```
+
+#### Search Response Format
+All search endpoints return full event details:
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "title": "Core Router Upgrade",
+      "description": "Upgrade firmware on core routers",
+      "scheduled_date": "2024-01-15",
+      "start_time": "02:00:00",
+      "end_time": "04:00:00",
+      "scheduled_datetime_start": "2024-01-15T02:00:00",
+      "scheduled_datetime_end": "2024-01-15T04:00:00",
+      "config_changes": "Firmware upgrade from v1.2 to v1.3",
+      "mop_content": "Step 1: Backup config\nStep 2: ...",
+      "mop_file_available": true,
+      "status": "approved_l2",
+      "creator": {
+        "id": "uuid",
+        "username": "john",
+        "full_name": "John Doe",
+        "email": "john@example.com"
+      },
+      "devices": [
+        {"device_id": "router-001", "device_name": "core-router-01", "device_ip": "10.0.0.1", "device_type": "router"}
+      ],
+      "device_count": 1,
+      "approvals": [
+        {"approval_level": 1, "status": "approved", "approver_username": "approver1", "comments": "Looks good"}
+      ],
+      "history": [
+        {"previous_status": "draft", "new_status": "submitted", "changed_by_username": "john", "change_reason": "Ready for review"}
+      ]
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "limit": 50,
+  "pages": 1,
+  "filters_applied": {"start_date": "2024-01-01", "status": "approved_l2"}
+}
+```
+
+#### Common Query Parameters
+| Parameter | Description |
+|-----------|-------------|
+| `include_mop` | Include MOP content (default: true) |
+| `sort_by` | Sort field: date, created, updated, title, status |
+| `sort_order` | asc or desc |
+| `page` | Page number (default: 1) |
+| `limit` | Items per page (default: 50, max: 200) |
+
 ## Event Lifecycle
 
 ```
