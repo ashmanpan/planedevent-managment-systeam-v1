@@ -10,8 +10,13 @@
     <div class="login-container">
         <div class="card login-card">
             <div class="login-title">
-                <h1>Register</h1>
-                <p>Create a new account</p>
+                <h1>Welcome to PEMS</h1>
+                <p style="color: var(--text-secondary); margin-top: 8px;">Please log in or register to continue</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab" data-tab="login">Login</button>
+                <button class="auth-tab active" data-tab="register">Register</button>
             </div>
 
             <div id="alerts"></div>
@@ -42,18 +47,24 @@
                     <input type="password" id="confirm_password" class="form-control" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
             </form>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="/pages/login.html">Already have an account? Login</a>
-            </div>
         </div>
     </div>
 
     <script src="/js/api.js"></script>
     <script src="/js/app.js"></script>
     <script>
+        // Tab switching
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabType = tab.getAttribute('data-tab');
+                if (tabType === 'login') {
+                    window.location.href = '/pages/login.html';
+                }
+            });
+        });
+
         document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 

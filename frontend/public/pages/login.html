@@ -10,15 +10,20 @@
     <div class="login-container">
         <div class="card login-card">
             <div class="login-title">
-                <h1>PEMS</h1>
-                <p>Planned Event Management System</p>
+                <h1>Welcome to PEMS</h1>
+                <p style="color: var(--text-secondary); margin-top: 8px;">Please log in or register to continue</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Register</button>
             </div>
 
             <div id="alerts"></div>
 
             <form id="login-form">
                 <div class="form-group">
-                    <label class="form-label" for="username">Username</label>
+                    <label class="form-label" for="username">Username or Email</label>
                     <input type="text" id="username" class="form-control" required>
                 </div>
 
@@ -27,12 +32,8 @@
                     <input type="password" id="password" class="form-control" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
             </form>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="/pages/register.html">Don't have an account? Register</a>
-            </div>
         </div>
     </div>
 
@@ -43,6 +44,16 @@
         if (localStorage.getItem('access_token')) {
             window.location.href = '/pages/dashboard.html';
         }
+
+        // Tab switching
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabType = tab.getAttribute('data-tab');
+                if (tabType === 'register') {
+                    window.location.href = '/pages/register.html';
+                }
+            });
+        });
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();

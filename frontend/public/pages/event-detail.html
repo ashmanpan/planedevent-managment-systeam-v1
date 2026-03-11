@@ -427,9 +427,17 @@
         });
 
         async function returnToDraft() {
-            // This would require a status transition back to draft
-            // For now, show a message
-            showAlert('Please contact an administrator to return this event to draft status', 'warning');
+            if (!confirm('Return this event to draft status?')) return;
+
+            const reason = prompt('Enter reason for returning to draft (optional):');
+
+            try {
+                await api.returnToDraftEvent(currentEvent.id, reason || null);
+                showAlert('Event returned to draft status');
+                loadEvent();
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

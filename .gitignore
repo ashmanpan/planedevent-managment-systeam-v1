@@ -9,6 +9,8 @@ venv/
 .venv/
 pip-log.txt
 pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
 
 # Environment
 .env
@@ -21,13 +23,16 @@ pip-delete-this-directory.txt
 *.swp
 *.swo
 *~
+.cursor/
 
 # OS
 .DS_Store
 Thumbs.db
+*.bak
 
 # Docker
 .docker/
+docker-compose.override.yml
 
 # Logs
 logs/
@@ -39,9 +44,12 @@ logs/
 
 # Uploads
 uploads/
+backend/uploads/
 
 # Node
 node_modules/
+package-lock.json
+yarn.lock
 
 # Build
 dist/
@@ -58,3 +66,19 @@ coverage.xml
 
 # mypy
 .mypy_cache/
+
+# Kubernetes sensitive files
+k8s/*secret*.yaml
+k8s/*.secret.yaml
+!k8s/secrets.yaml.example
+
+# Temporary files
+*.tmp
+*.temp
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Local scripts and tools
+scripts/test-*.py
+scripts/local-*.sh

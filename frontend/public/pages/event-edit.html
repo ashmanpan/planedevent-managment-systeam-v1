@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Event - PEMS</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="/pages/dashboard.html" class="logo">PEMS</a>
+            <nav>
+                <a href="/pages/dashboard.html">Dashboard</a>
+                <a href="/pages/event-create.html">New Event</a>
+                <a href="/pages/approvals.html">Approvals</a>
+            </nav>
+            <div class="user-menu"></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1 class="page-title">Edit Planned Event</h1>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div id="form-container">
+            <div class="loading-container">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        let currentEvent = null;
+        let selectedDevices = [];
+        let eventId = null;
+        let deviceIdsToRemove = [];
+
+        async function loadEvent() {
+            const params = new URLSearchParams(window.location.search);
+            eventId = params.get('id');
+
+            if (!eventId) {
+                showAlert('Event ID is required', 'error');
+                setTimeout(() => {
+                    window.location.href = '/pages/dashboard.html';
+                }, 1500);
+                return;
+            }
+
+            try {
+                currentEvent = await api.getEvent(eventId);
+
+                // Check if user is the owner
+                const user = getCurrentUser();
+                if (!user || currentEvent.created_by !== user.id) {
+                    showAlert('You can only edit your own events', 'error');
+                    setTimeout(() => {
+                        window.location.href = `/pages/event-detail.html?id=${eventId}`;
+                    }, 1500);
+                    return;
+                }
+
+                // Check if event is in draft status
+                if (currentEvent.status !== 'draft') {
+                    showAlert('Only draft events can be edited', 'error');
+                    setTimeout(() => {
+                        window.location.href = `/pages/event-detail.html?id=${eventId}`;
+                    }, 1500);
+                    return;
+                }
+
+                // Load devices into selectedDevices array
+                selectedDevices = currentEvent.devices.map(device => ({
+                    device_id: device.device_id,
+                    device_name: device.device_name || device.device_id,
+                    device_ip: device.device_ip || '',
+                    device_type: device.device_type || '',
+                    device_location: device.device_location || '',
+                    existing: true  // Mark as existing device
+                }));
+
+                renderForm();
+            } catch (error) {
+                showAlert(error.message, 'error');
+                setTimeout(() => {
+                    window.location.href = '/pages/dashboard.html';
+                }, 1500);
+            }
+        }
+
+        function renderForm() {
+            const container = document.getElementById('form-container');
+
+            container.innerHTML = `
+                <form id="event-form">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Event Details</h2>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="title">Event Title *</label>
+                            <input type="text" id="title" class="form-control" required maxlength="200"
+                                value="${escapeHtml(currentEvent.title)}" placeholder="e.g., Core Router Upgrade">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="description">Purpose / Description</label>
+                            <textarea id="description" class="form-control" rows="3"
+                                placeholder="Explain the purpose of this planned event...">${escapeHtml(currentEvent.description || '')}</textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="scheduled_date">Scheduled Date *</label>
+                                <input type="date" id="scheduled_date" class="form-control" required
+                                    value="${currentEvent.scheduled_date}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="start_time">Start Time *</label>
+                                <input type="time" id="start_time" class="form-control" required
+                                    value="${currentEvent.start_time}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="end_time">End Time *</label>
+                                <input type="time" id="end_time" class="form-control" required
+                                    value="${currentEvent.end_time}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="config_changes">Configuration Changes</label>
+                            <textarea id="config_changes" class="form-control" rows="4"
+                                placeholder="Describe the configuration changes that will be made...">${escapeHtml(currentEvent.config_changes || '')}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Affected Devices</h2>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Add Devices</label>
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <input type="text" id="device-search" class="form-control" placeholder="Search devices..." style="flex: 1;">
+                                <button type="button" class="btn btn-outline" onclick="searchDevices()">Search</button>
+                            </div>
+
+                            <div id="device-search-results" class="device-list" style="margin-bottom: 15px;"></div>
+
+                            <div style="margin-bottom: 10px;">
+                                <label class="form-label">Or paste device IDs (comma-separated)</label>
+                                <input type="text" id="device-paste" class="form-control" placeholder="dev-001, dev-002, dev-003">
+                                <button type="button" class="btn btn-outline btn-sm" style="margin-top: 5px;" onclick="addPastedDevices()">Add Devices</button>
+                            </div>
+
+                            <div style="margin-bottom: 10px;">
+                                <label class="form-label">Or upload CSV file</label>
+                                <input type="file" id="device-csv" class="form-control" accept=".csv">
+                                <button type="button" class="btn btn-outline btn-sm" style="margin-top: 5px;" onclick="uploadCSV()">Upload CSV</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Selected Devices</label>
+                            <div id="selected-devices" class="device-list">
+                                <span style="color: var(--text-secondary);">No devices selected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Method of Procedure (MOP)</h2>
+                        </div>
+
+                        ${currentEvent.mop_file_path ? `
+                            <div style="margin-bottom: 15px; padding: 10px; background: var(--background-color); border-radius: 6px;">
+                                <strong>Current MOP Document:</strong>
+                                <a href="/api/v1/events/${currentEvent.id}/mop/download" class="btn btn-outline btn-sm" style="margin-left: 10px;">Download</a>
+                                <p style="margin-top: 5px; color: var(--text-secondary); font-size: 0.9em;">Upload a new file below to replace this document.</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="form-group">
+                            <label class="form-label" for="mop_content">MOP Content</label>
+                            <textarea id="mop_content" class="form-control" rows="10"
+                                placeholder="Step 1: ...
+Step 2: ...
+Step 3: ...">${escapeHtml(currentEvent.mop_content || '')}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Or upload MOP document</label>
+                            <input type="file" id="mop-file" class="form-control">
+                            <small style="color: var(--text-secondary);">Supported: PDF, DOC, DOCX, TXT (Max 10MB)</small>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 30px;">
+                        <a href="/pages/event-detail.html?id=${eventId}" class="btn btn-outline">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Update Event</button>
+                    </div>
+                </form>
+            `;
+
+            updateSelectedDevices();
+
+            // Setup form submission handler
+            document.getElementById('event-form').addEventListener('submit', handleSubmit);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Search devices from external API
+        async function searchDevices() {
+            const query = document.getElementById('device-search').value;
+            if (!query) return;
+
+            try {
+                const response = await api.searchDevices(query);
+                const resultsDiv = document.getElementById('device-search-results');
+
+                if (response.devices.length === 0) {
+                    resultsDiv.innerHTML = '<span style="color: var(--text-secondary);">No devices found</span>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = response.devices.map(device => `
+                    <span class="device-tag" style="cursor: pointer;" onclick="addDevice('${device.id}', '${device.name}', '${device.ip || ''}', '${device.type || ''}', '${device.location || ''}')">
+                        + ${device.name} (${device.ip || device.id})
+                    </span>
+                `).join('');
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        // Add device to selection
+        function addDevice(id, name, ip, type, location) {
+            if (selectedDevices.find(d => d.device_id === id)) {
+                showAlert('Device already added', 'warning');
+                return;
+            }
+
+            selectedDevices.push({
+                device_id: id,
+                device_name: name,
+                device_ip: ip,
+                device_type: type,
+                device_location: location || '',
+                existing: false
+            });
+
+            updateSelectedDevices();
+        }
+
+        // Remove device from selection
+        function removeDevice(id) {
+            const device = selectedDevices.find(d => d.device_id === id);
+
+            // If it's an existing device, track it for removal via API
+            if (device && device.existing) {
+                deviceIdsToRemove.push(id);
+            }
+
+            selectedDevices = selectedDevices.filter(d => d.device_id !== id);
+            updateSelectedDevices();
+        }
+
+        // Update selected devices display
+        function updateSelectedDevices() {
+            const container = document.getElementById('selected-devices');
+
+            if (selectedDevices.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-secondary);">No devices selected</span>';
+                return;
+            }
+
+            container.innerHTML = selectedDevices.map(device => `
+                <span class="device-tag">
+                    ${device.device_name || device.device_id}
+                    ${device.existing ? ' <span style="opacity: 0.6;">(existing)</span>' : ''}
+                    <span class="remove" onclick="removeDevice('${device.device_id}')">&times;</span>
+                </span>
+            `).join('');
+        }
+
+        // Add pasted devices
+        function addPastedDevices() {
+            const input = document.getElementById('device-paste').value;
+            if (!input) return;
+
+            const ids = input.split(',').map(s => s.trim()).filter(s => s);
+
+            ids.forEach(id => {
+                if (!selectedDevices.find(d => d.device_id === id)) {
+                    selectedDevices.push({
+                        device_id: id,
+                        device_name: id,
+                        device_ip: '',
+                        device_type: '',
+                        device_location: '',
+                        existing: false
+                    });
+                }
+            });
+
+            document.getElementById('device-paste').value = '';
+            updateSelectedDevices();
+        }
+
+        // Upload CSV file
+        async function uploadCSV() {
+            const fileInput = document.getElementById('device-csv');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showAlert('Please select a CSV file', 'warning');
+                return;
+            }
+
+            // Read and parse the CSV client-side
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const devices = parseCSV(text);
+
+                let addedCount = 0;
+                devices.forEach(row => {
+                    const id = row.device_id || row.id || row.deviceid;
+                    if (id && !selectedDevices.find(d => d.device_id === id)) {
+                        selectedDevices.push({
+                            device_id: id,
+                            device_name: row.device_name || row.name || row.hostname || id,
+                            device_ip: row.device_ip || row.ip || row.ip_address || '',
+                            device_type: row.device_type || row.type || '',
+                            device_location: row.device_location || row.location || '',
+                            existing: false
+                        });
+                        addedCount++;
+                    }
+                });
+
+                updateSelectedDevices();
+                fileInput.value = '';
+                showAlert(`Added ${addedCount} devices from CSV`);
+            };
+            reader.readAsText(file);
+        }
+
+        // Form submission
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const eventData = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value || null,
+                scheduled_date: document.getElementById('scheduled_date').value,
+                start_time: document.getElementById('start_time').value,
+                end_time: document.getElementById('end_time').value,
+                config_changes: document.getElementById('config_changes').value || null,
+                mop_content: document.getElementById('mop_content').value || null
+            };
+
+            try {
+                // Update event details
+                const updatedEvent = await api.updateEvent(eventId, eventData);
+
+                // Remove devices that were marked for removal
+                for (const deviceId of deviceIdsToRemove) {
+                    try {
+                        await api.removeDeviceFromEvent(eventId, deviceId);
+                    } catch (error) {
+                        console.error(`Failed to remove device ${deviceId}:`, error);
+                    }
+                }
+
+                // Add new devices
+                const newDevices = selectedDevices.filter(d => !d.existing);
+                if (newDevices.length > 0) {
+                    await api.addDevicesBulk(eventId, newDevices);
+                }
+
+                // Upload MOP file if any
+                const mopFile = document.getElementById('mop-file').files[0];
+                if (mopFile) {
+                    await api.uploadMOP(eventId, mopFile);
+                }
+
+                showAlert('Event updated successfully!');
+                setTimeout(() => {
+                    window.location.href = `/pages/event-detail.html?id=${eventId}`;
+                }, 1000);
+
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            loadEvent();
+        });
+    </script>
+</body>
+</html>

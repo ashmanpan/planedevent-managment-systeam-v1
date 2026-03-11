@@ -6,7 +6,7 @@ from datetime import date, time
 from typing import Optional, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, asc, desc
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.event import PlannedEvent, EventStatus
@@ -31,7 +31,7 @@ class SearchService:
 
     def _apply_sorting(self, query, sort_by: str, sort_order: str):
         """Apply sorting to query."""
-        order_func = func.asc if sort_order == "asc" else func.desc
+        order_func = asc if sort_order == "asc" else desc
 
         if sort_by == "date":
             query = query.order_by(

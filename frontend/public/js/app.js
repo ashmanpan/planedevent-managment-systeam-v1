@@ -165,8 +165,3 @@ function setQueryParams(params) {
     });
     window.history.pushState({}, '', url);
 }
-
-// Confirmation dialog
-function confirm(message) {
-    return window.confirm(message);
-}

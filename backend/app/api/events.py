@@ -18,6 +18,7 @@ from app.schemas.event import (
     EventListResponse,
     EventStatusUpdate,
     EventHistoryResponse,
+    StatsResponse,
 )
 from app.schemas.device import DeviceCreate, DeviceResponse, DeviceBulkCreate
 from app.services.event_service import EventService
@@ -74,6 +75,17 @@ def list_events(
         limit=limit,
         pages=pages,
     )
+
+
+@router.get("/stats", response_model=StatsResponse)
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get dashboard statistics - event counts by status."""
+    event_service = EventService(db)
+    stats = event_service.get_stats()
+    return stats
 
 
 @router.get("/{event_id}", response_model=EventResponse)
@@ -309,6 +321,33 @@ def defer_event(
     try:
         event = event_service.change_status(
             event_id, EventStatus.DEFERRED, current_user.id, status_update.reason
+        )
+        if not event:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Event not found",
+            )
+        return event
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post("/{event_id}/return-to-draft", response_model=EventResponse)
+def return_to_draft(
+    event_id: UUID,
+    status_update: EventStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return event to draft status from rejected/deferred/postponed."""
+    event_service = EventService(db)
+
+    try:
+        event = event_service.change_status(
+            event_id, EventStatus.DRAFT, current_user.id, status_update.reason
         )
         if not event:
             raise HTTPException(

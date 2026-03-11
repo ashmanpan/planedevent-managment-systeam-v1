@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func, case
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.event import PlannedEvent, EventStatus, STATUS_TRANSITIONS
@@ -195,3 +195,54 @@ class EventService:
             change_reason=reason,
         )
         self.db.add(history)
+
+    def get_stats(self) -> dict:
+        """Get dashboard statistics - counts of events by status."""
+        # Get total count
+        total = self.db.query(func.count(PlannedEvent.id)).scalar()
+
+        # Count by specific statuses
+        draft = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.DRAFT
+        ).scalar()
+
+        # Pending approval = submitted + approved_l1
+        pending_approval = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status.in_([EventStatus.SUBMITTED, EventStatus.APPROVED_L1])
+        ).scalar()
+
+        in_progress = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.IN_PROGRESS
+        ).scalar()
+
+        completed = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.COMPLETED
+        ).scalar()
+
+        rejected = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.REJECTED
+        ).scalar()
+
+        reverted = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.REVERTED
+        ).scalar()
+
+        postponed = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.POSTPONED
+        ).scalar()
+
+        deferred = self.db.query(func.count(PlannedEvent.id)).filter(
+            PlannedEvent.status == EventStatus.DEFERRED
+        ).scalar()
+
+        return {
+            "total_events": total or 0,
+            "draft": draft or 0,
+            "pending_approval": pending_approval or 0,
+            "in_progress": in_progress or 0,
+            "completed": completed or 0,
+            "rejected": rejected or 0,
+            "reverted": reverted or 0,
+            "postponed": postponed or 0,
+            "deferred": deferred or 0,
+        }

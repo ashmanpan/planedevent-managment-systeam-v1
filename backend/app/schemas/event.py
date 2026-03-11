@@ -86,3 +86,16 @@ class EventHistoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StatsResponse(BaseModel):
+    """Dashboard statistics response."""
+    total_events: int
+    draft: int
+    pending_approval: int  # submitted + approved_l1
+    in_progress: int
+    completed: int
+    rejected: int
+    reverted: int
+    postponed: int
+    deferred: int

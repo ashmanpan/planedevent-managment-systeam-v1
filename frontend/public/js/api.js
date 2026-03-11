@@ -85,6 +85,10 @@ class ApiClient {
         return this.request(`/events?${queryString}`);
     }
 
+    async getStats() {
+        return this.request('/events/stats');
+    }
+
     async getEvent(eventId) {
         return this.request(`/events/${eventId}`);
     }
@@ -144,6 +148,13 @@ class ApiClient {
 
     async deferEvent(eventId, reason = null) {
         return this.request(`/events/${eventId}/defer`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+    }
+
+    async returnToDraftEvent(eventId, reason = null) {
+        return this.request(`/events/${eventId}/return-to-draft`, {
             method: 'POST',
             body: JSON.stringify({ reason }),
         });

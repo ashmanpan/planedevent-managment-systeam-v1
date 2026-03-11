@@ -8,7 +8,8 @@ async function loadEvents(page = 1, filters = {}) {
     const tableBody = document.getElementById('events-table-body');
     if (!tableBody) return;
 
-    showLoading(tableBody.parentElement);
+    // Show loading spinner in tbody only
+    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;"><div class="spinner"></div></td></tr>';
 
     try {
         const params = {
@@ -25,7 +26,8 @@ async function loadEvents(page = 1, filters = {}) {
         const response = await api.getEvents(params);
 
         if (response.items.length === 0) {
-            showEmptyState(tableBody.parentElement, 'No events found');
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;"><h3>No events found</h3><p>Try adjusting your filters or create a new event.</p></td></tr>';
+            updatePagination(1, 0, 0);
             return;
         }
 
@@ -49,6 +51,7 @@ async function loadEvents(page = 1, filters = {}) {
 
     } catch (error) {
         showAlert(error.message, 'error');
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #d32f2f;"><h3>Error loading events</h3><p>' + error.message + '</p></td></tr>';
     }
 }
 

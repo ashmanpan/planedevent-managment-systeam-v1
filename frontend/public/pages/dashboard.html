@@ -114,17 +114,13 @@
     <script>
         async function loadStats() {
             try {
-                // Get all events to calculate stats
-                const allEvents = await api.getEvents({ limit: 1000 });
-                const events = allEvents.items;
+                // Get stats from dedicated endpoint
+                const stats = await api.getStats();
 
-                document.getElementById('stat-total').textContent = events.length;
-                document.getElementById('stat-pending').textContent = events.filter(e =>
-                    ['submitted', 'approved_l1'].includes(e.status)).length;
-                document.getElementById('stat-progress').textContent = events.filter(e =>
-                    e.status === 'in_progress').length;
-                document.getElementById('stat-completed').textContent = events.filter(e =>
-                    e.status === 'completed').length;
+                document.getElementById('stat-total').textContent = stats.total_events;
+                document.getElementById('stat-pending').textContent = stats.pending_approval;
+                document.getElementById('stat-progress').textContent = stats.in_progress;
+                document.getElementById('stat-completed').textContent = stats.completed;
             } catch (error) {
                 console.error('Failed to load stats:', error);
             }
