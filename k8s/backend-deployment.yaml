@@ -54,7 +54,7 @@ spec:
       - name: ecr-registry-secret
       containers:
       - name: backend
-        image: 252864143672.dkr.ecr.ap-southeast-1.amazonaws.com/apj/can-aaipe:pems_backend_v01
+        image: 252864143672.dkr.ecr.ap-southeast-1.amazonaws.com/apj/can-aaipe:pems_backend_v02
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
